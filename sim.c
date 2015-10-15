@@ -105,9 +105,17 @@ char **parse_command(char *command)
 	return cmd_args;
 }
 
-int cleanup(char **command_args)
+void cleanup(char **command_args)
 {
-	return 0;
+	char *c;
+	int i=0;
+	while((c=command_args[i])!=NULL)
+	{
+		free(c);
+		c = NULL;
+		i++;
+	}
+	free(command_args);
 }
 
 //Used to remove any trailing space for commands like pwd,ls
@@ -199,7 +207,7 @@ int main(void)
 		command_args = parse_command(command);		
 		command_status = execute_command(command_args);
 		free(command);
-		//free(command_args);
+		cleanup(command_args);
 		command = NULL;
 	}
 	return 0;
