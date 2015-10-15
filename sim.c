@@ -136,8 +136,9 @@ int execute_command(char **command_args)
 	char *cmd = command_args[0];
 	char *path = command_args[1];
 	char *temp;
+	int pid,status;
 	temp = malloc(BUFFER_SIZE);
-	remove_trailing_space(cmd);
+	cmd = remove_trailing_space(cmd);
 	//Sort out if there is a pipe or redirection before, else do normally
 		if(strcmp(cmd,"cd") == 0)
 		{
@@ -162,11 +163,11 @@ int execute_command(char **command_args)
 				}
 			}
 		}
-		else if(strcmp(command_args[0],"set")==0)
+		else if(strcmp(cmd,"set")==0)
 		{
 
 		}
-		else if(strcmp(command_args[0],"pwd")==0)
+		else if(strcmp(cmd,"pwd")==0)
 		{
 			if (getcwd(temp,BUFFER_SIZE)!=NULL)
 			{
@@ -175,14 +176,33 @@ int execute_command(char **command_args)
 			else
 				printf("Failed fetching current working directory\n");
 		}
-		else if(strcmp(command_args[0],"exit")==0)
+		else if(strcmp(cmd,"exit")==0)
 		{
 			cleanup(command_args);
 			exit(0);
 		}
 		else
 		{//Pass these to the shell
-		printf("Not anything that I know dude\n");
+			//printf("Not anything that I know dude\n");
+			strcat(temp,"/bin/");
+			strcat(temp,cmd);
+			//printf("%s\n",temp);
+			if((pid=fork())==0)
+			{
+				execvp(cmd,&command_args[0]);
+				exit(0);
+			}
+			else if(pid>0)
+			{//parent process
+				waitpid(pid,&status,0);
+				if(status==1)
+				{
+					printf("%s\n","Invalid Command!");
+				}
+			}
+			//sleep(1);
+			//perror(temp);
+			//exit(1);
 		}
 	free(temp);
 	return 1;		
@@ -199,9 +219,9 @@ int main(void)
 	while(command_status)
 	{
 		print_prompt();
-		if((command = get_input())==NULL)
+		if((command = get_input())==NULL||(strcmp(command,"\n")==0))
 		{
-			printf("Read Error\n");
+			//printf("Read Error\n");
 			continue;
 		}
 		command_args = parse_command(command);		
