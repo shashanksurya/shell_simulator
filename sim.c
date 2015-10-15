@@ -136,36 +136,45 @@ int execute_command(char **command_args)
 	char *cmd = command_args[0];
 	char *path = command_args[1];
 	char *temp;
+	char *env;
 	int pid,status;
 	temp = malloc(BUFFER_SIZE);
 	cmd = remove_trailing_space(cmd);
 	//Sort out if there is a pipe or redirection before, else do normally
 		if(strcmp(cmd,"cd") == 0)
 		{
-			//Absolute path
-			if(path[0] == '/')
+			if(path!=NULL)
 			{
-				if(chdir(path)!=0)
+				//Absolute path
+				if(path[0] == '/')
 				{
-					perror(path);
+					if(chdir(path)!=0)
+					{
+						perror(path);
+					}
 				}
-			}
-			//Relative path
-			else
-			{
-				//Max 80 char address here
-				getcwd(temp,BUFFER_SIZE);
-				strcat(temp,"/");
-				strcat(temp,path);
-				if(chdir(temp)!=0)
+				//Relative path
+				else
 				{
-					perror(temp);
+					//Max 80 char address here
+					getcwd(temp,BUFFER_SIZE);
+					strcat(temp,"/");
+					strcat(temp,path);
+					if(chdir(temp)!=0)
+					{
+						perror(temp);
+					}
 				}
 			}
 		}
 		else if(strcmp(cmd,"set")==0)
 		{
-
+			if(path!=NULL)
+			{
+				//since putenv doesn't copy the string
+				env = strdup(path);
+				putenv(env);
+			}
 		}
 		else if(strcmp(cmd,"pwd")==0)
 		{
@@ -183,10 +192,6 @@ int execute_command(char **command_args)
 		}
 		else
 		{//Pass these to the shell
-			//printf("Not anything that I know dude\n");
-			strcat(temp,"/bin/");
-			strcat(temp,cmd);
-			//printf("%s\n",temp);
 			if((pid=fork())==0)
 			{
 				execvp(cmd,&command_args[0]);
@@ -200,9 +205,6 @@ int execute_command(char **command_args)
 					printf("%s\n","Invalid Command!");
 				}
 			}
-			//sleep(1);
-			//perror(temp);
-			//exit(1);
 		}
 	free(temp);
 	return 1;		
@@ -212,23 +214,32 @@ int execute_command(char **command_args)
 
 int main(void)
 {
-	int command_status = 1,i=0; //if 0 exit
+	int command_status = 1; //if 0 exit
 	char *command;
 	char **command_args;
-	char *temp;
 	while(command_status)
 	{
 		print_prompt();
-		if((command = get_input())==NULL||(strcmp(command,"\n")==0))
+		if((command = get_input())==NULL)
 		{
-			//printf("Read Error\n");
+			//Ctrl+D comes here, terminate?
+			printf("Read Error\n");
 			continue;
 		}
+		else if (strcmp(command,"\n")==0)
+		{
+			free(command);
+			command = NULL;
+			continue;			
+		}
+		else
+		{
 		command_args = parse_command(command);		
 		command_status = execute_command(command_args);
 		free(command);
 		cleanup(command_args);
 		command = NULL;
+		}
 	}
 	return 0;
 }
