@@ -86,7 +86,7 @@ char **parse_command(char *command)
 {
 	char *cmd,*token;
 	char **cmd_args;
-	char seperator[] = " ";
+	char seperator[] = " \n";
 	int i=0;
 	command = add_spaces(command);
 	cmd_args = (char **)malloc((get_arg_count(command)+1)*sizeof(char *));
@@ -117,7 +117,7 @@ char *remove_trailing_space(char *command)
 	int end = strlen(command);
 	if(isspace(command[end-1]))
 	{
-		//printf("Space found\n");
+		printf("Space found\n");
 		command[end-1] = '\0';
 	}
 	return command;
@@ -136,7 +136,10 @@ int execute_command(char **command_args)
 			//Absolute path
 			if(path[0] == '/')
 			{
-				chdir(path);
+				if(chdir(path)!=0)
+				{
+					perror(path);
+				}
 			}
 			//Relative path
 			else
@@ -145,7 +148,10 @@ int execute_command(char **command_args)
 				getcwd(temp,BUFFER_SIZE);
 				strcat(temp,"/");
 				strcat(temp,path);
-				chdir(temp);
+				if(chdir(temp)!=0)
+				{
+					perror(temp);
+				}
 			}
 		}
 		else if(strcmp(command_args[0],"set")==0)
