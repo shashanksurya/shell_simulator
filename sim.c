@@ -81,6 +81,101 @@ int get_arg_count(char *command)
 	return arg_count;
 }
 
+int check_pipe(char **cmd_args)
+{
+	int i=0;
+	for(i=0;cmd_args[i]!=NULL;i++)
+	{
+		if(strcmp(cmd_args[i],"|")==0)
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+char **remove_redirection(char **cmd_args)
+{
+	int i, j;
+	for (i = 0, j = 0; cmd_args[i] != NULL; ++i) {
+		char *arg = cmd_args[i];
+		if ((strcmp(arg, ">") == 0 || strcmp(arg, "<") == 0)) {
+			free(arg); // free the <, >
+			free(cmd_args[i + 1]); // free the filename
+			++i;
+		} else {
+			cmd_args[j] = cmd_args[i];
+			++j;
+		}
+	}
+	cmd_args[j] = NULL;
+	return cmd_args;
+}
+
+void input_redirection(char *filename)
+{
+	int fd;
+	if((fd = open(filename, O_RDONLY)) == -1) {
+		exit(1);
+	}
+	dup2(fd, STDIN_FILENO);
+	close(fd);
+}
+
+void output_redirection(char *filename) {
+	int fd;
+	if((fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0666)) == -1) {
+		exit(1);
+	}
+	dup2(fd, STDOUT_FILENO);
+	close(fd);
+}
+
+
+void handle_redirection(char **cmd_args)
+{
+	int i=0;
+	for(i=0;cmd_args[i]!=NULL;i++)
+	{
+		if(strcmp(cmd_args[i],"<")==0)
+		{
+			if(cmd_args[i+1]==NULL)
+				return;
+			else
+				input_redirection(cmd_args[i+1]);
+		}
+
+		if(strcmp(cmd_args[i],">")==0)
+		{
+			if(cmd_args[i+1]==NULL)
+				return;
+			else
+				output_redirection(cmd_args[i+1]);
+		}
+	}
+}
+
+
+//Checks the redirection here
+int check_redirection(char **cmd_args)
+{
+	int i = 0;
+	for(i=0;cmd_args[i]!=NULL;i++)
+	{
+		if(strcmp(cmd_args[i],"<")==0||strcmp(cmd_args[i],">")==0)
+			return 1;
+	}
+	return 0;
+}
+
+void print_parsed(char **command_args)
+{
+	int i=0;
+	char *c;
+	while((c=command_args[i++])!=NULL)
+		printf("Item %d : %s\n",i,c);
+}
+
 //This is where actual raw input goes and comes out formatted
 char **parse_command(char *command)
 {
@@ -101,7 +196,8 @@ char **parse_command(char *command)
 		i+=1;
 	}
 	cmd_args[i] = NULL;
-	free(cmd);
+	//printf("Command is  %s\n",cmd);
+	//free(cmd);
 	return cmd_args;
 }
 
@@ -115,7 +211,7 @@ void cleanup(char **command_args)
 		c = NULL;
 		i++;
 	}
-	free(command_args);
+	//free(command_args);
 }
 
 //Used to remove any trailing space for commands like pwd,ls
@@ -131,7 +227,7 @@ char *remove_trailing_space(char *command)
 	return command;
 }
 
-int execute_command(char **command_args)
+int execute_subcommand(char **command_args)
 {
 	char *cmd = command_args[0];
 	char *path = command_args[1];
@@ -140,6 +236,7 @@ int execute_command(char **command_args)
 	int pid,status;
 	temp = malloc(BUFFER_SIZE);
 	cmd = remove_trailing_space(cmd);
+	//print_parsed(command_args);
 	//Sort out if there is a pipe or redirection before, else do normally
 		if(strcmp(cmd,"cd") == 0)
 		{
@@ -173,7 +270,8 @@ int execute_command(char **command_args)
 			{
 				//since putenv doesn't copy the string
 				env = strdup(path);
-				putenv(env);
+				if(putenv(env)!=0)
+					printf("Error in setting path!\n");
 			}
 		}
 		else if(strcmp(cmd,"pwd")==0)
@@ -212,6 +310,42 @@ int execute_command(char **command_args)
 
 
 
+int execute_command(char **command_args)
+{
+	//print_parsed(command_args);
+	int status;
+	int p = check_pipe(command_args);
+	int r = check_redirection(command_args);
+	int pid;
+	//int b = check_background(command_args);
+	//Check and see if redirection is needed
+	if(r==1)
+	{//setup the redirection
+		if((pid=fork())==0)
+		{//child process
+			handle_redirection(command_args);
+			command_args = remove_redirection(command_args);
+			execute_command(command_args);
+			exit(1);
+		}
+		else if(pid>0)
+		{//parent process
+			waitpid(pid,&status,0);
+			fflush(0);
+		}
+	}
+	if(p==0)
+	{
+		return execute_subcommand(command_args);
+	}
+	else
+	{
+		//Pipes logic goes here
+	}
+	return 1;
+}
+
+
 int main(void)
 {
 	int command_status = 1; //if 0 exit
@@ -224,6 +358,7 @@ int main(void)
 		{
 			//Ctrl+D comes here, terminate?
 			printf("Read Error\n");
+			exit(0);
 			continue;
 		}
 		else if (strcmp(command,"\n")==0)
