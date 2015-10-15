@@ -28,7 +28,7 @@ char *get_input()
 
 
 /*To add spaces after special characters if there are none. This will help
-  to make sure our command is always in specific format*/
+  to make sure our command is always in specific format.*/
 char *add_spaces(char *command)
 {
 	char *cmd = malloc(BUFFER_SIZE);
@@ -68,7 +68,7 @@ char *add_spaces(char *command)
 	return command;
 }
 
-//needed as we need total number of arguments in the command to allocate space
+//to get the total number of arguments in the command
 int get_arg_count(char *command)
 {
 	int i=0,arg_count = 0;
@@ -81,7 +81,7 @@ int get_arg_count(char *command)
 	return arg_count;
 }
 
-
+//This is where actual raw input goes and comes out formatted
 char **parse_command(char *command)
 {
 	char *cmd,*token;
@@ -105,10 +105,76 @@ char **parse_command(char *command)
 	return cmd_args;
 }
 
+int cleanup(char **command_args)
+{
+	return 0;
+}
+
+//Used to remove any trailing space for commands like pwd,ls
+//which is unnecessary
+char *remove_trailing_space(char *command)
+{
+	int end = strlen(command);
+	if(isspace(command[end-1]))
+	{
+		//printf("Space found\n");
+		command[end-1] = '\0';
+	}
+	return command;
+}
+
 int execute_command(char **command_args)
 {
-	return 1;
+	char *cmd = command_args[0];
+	char *path = command_args[1];
+	char *temp;
+	temp = malloc(BUFFER_SIZE);
+	remove_trailing_space(cmd);
+	//Sort out if there is a pipe or redirection before, else do normally
+		if(strcmp(cmd,"cd") == 0)
+		{
+			//Absolute path
+			if(path[0] == '/')
+			{
+				chdir(path);
+			}
+			//Relative path
+			else
+			{
+				//Max 80 char address here
+				getcwd(temp,BUFFER_SIZE);
+				strcat(temp,"/");
+				strcat(temp,path);
+				chdir(temp);
+			}
+		}
+		else if(strcmp(command_args[0],"set")==0)
+		{
+
+		}
+		else if(strcmp(command_args[0],"pwd")==0)
+		{
+			if (getcwd(temp,BUFFER_SIZE)!=NULL)
+			{
+				printf("%s\n",temp);
+			}
+			else
+				printf("Failed fetching current working directory\n");
+		}
+		else if(strcmp(command_args[0],"exit")==0)
+		{
+			cleanup(command_args);
+			exit(0);
+		}
+		else
+		{//Pass these to the shell
+		printf("Not anything that I know dude\n");
+		}
+	free(temp);
+	return 1;		
 }
+
+
 
 int main(void)
 {
@@ -125,13 +191,6 @@ int main(void)
 			continue;
 		}
 		command_args = parse_command(command);		
-		i=0;
-		while((temp = command_args[i])!=NULL)
-		{
-			printf("%s ",temp);
-			i+=1;
-		}
-		//printf("\n");
 		command_status = execute_command(command_args);
 		free(command);
 		//free(command_args);
