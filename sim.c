@@ -332,6 +332,7 @@ int execute_command(char **command_args)
 		{//parent process
 			waitpid(pid,&status,0);
 			fflush(0);
+			return 1;
 		}
 	}
 	if(p==0)
