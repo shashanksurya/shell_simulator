@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS= -g -Wall
-TARGET=sim
+TARGET= sim
 
 all: $(TARGET)
 
