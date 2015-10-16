@@ -49,8 +49,6 @@ void print_lastmtime(struct stat *sf)
 {//following linux manual way
 
 	char output[BUFFER_SIZE];
-	time_t t;
-	struct tm *tmp;
 	strftime(output,BUFFER_SIZE,"%b %d %H:%M",localtime(&(sf->st_mtime)));
 	printf("%s ",output);
 }
@@ -65,12 +63,78 @@ void print_usrgrp(struct stat *sf)
 
 void print_type(struct stat *sf)
 {
-	
+	if(sf->st_mode & S_IFDIR)
+		printf("d");
+	else
+		printf("-");
 }
 
 void print_permissions(struct stat *sf)
 {
-	//if((sf->st_mode)&)
+	//User
+	if(sf->st_mode & S_IRUSR)
+		printf("r");
+	else
+		printf("-");
+	if(sf->st_mode & S_IWUSR)
+		printf("w");
+	else
+		printf("-");
+	if(sf->st_mode & S_IXUSR)
+		printf("x");
+	else
+		printf("-");
+	//Group
+	if(sf->st_mode & S_IRGRP)
+		printf("r");
+	else
+		printf("-");
+	if(sf->st_mode & S_IWGRP)
+		printf("w");
+	else
+		printf("-");
+	if(sf->st_mode & S_IXGRP)
+		printf("x");
+	else
+		printf("-");
+	//Other
+	if(sf->st_mode & S_IROTH)
+		printf("r");
+	else
+		printf("-");
+	if(sf->st_mode & S_IWOTH)
+		printf("w");
+	else
+		printf("-");
+	if(sf->st_mode & S_IXOTH)
+		printf("x");
+	else
+		printf("-");	
+	printf(" %d ",(int)sf->st_nlink);
+}
+
+void print_total_block_size(char *temp)
+{
+	DIR *dir;
+	struct dirent *d;
+	struct stat *sf = malloc(sizeof(struct stat));
+	unsigned long int bt = 0;
+	char *fname;
+	dir = opendir(temp);
+
+	while((d = readdir(dir))!=NULL)
+	{
+		//ls -l ->no hidden files, filter the names that start with dot
+		if(d->d_name[0]!='.')
+		{
+			fname = d->d_name;
+			stat(fname,sf);
+			bt+=sf->st_blocks;
+		}
+	}
+	printf("total %ld\n",(bt/2));
+	free(sf);
+	closedir(dir);
 }
 
 void ls()
@@ -86,9 +150,9 @@ void ls()
 		printf("Failed fetching current working directory\n");
 		return;
 	}
-	printf("%s\n",temp);
+	//printf("%s\n",temp);
 	dir = opendir(temp);
-	
+	print_total_block_size(temp);
 	while((d = readdir(dir))!=NULL)
 	{
 		//ls -l ->no hidden files, filter the names that start with dot
@@ -96,6 +160,7 @@ void ls()
 		{
 			fname = d->d_name;
 			stat(fname,sf);
+			print_type(sf);
 			print_permissions(sf);
 			print_usrgrp(sf);
 			printf("%ld ",sf->st_size);
