@@ -83,15 +83,15 @@ int get_arg_count(char *command)
 
 int check_pipe(char **cmd_args)
 {
-	int i=0;
+	int i=0,pipe_count=0;
 	for(i=0;cmd_args[i]!=NULL;i++)
 	{
 		if(strcmp(cmd_args[i],"|")==0)
 		{
-			return 1;
+			pipe_count+=1;
 		}
 	}
-	return 0;
+	return pipe_count;
 }
 
 char **remove_redirection(char **cmd_args)
@@ -308,15 +308,76 @@ int execute_subcommand(char **command_args)
 	return 1;		
 }
 
+char ***get_pipe_commands(char **cmd_args,char ***new_cmdargs)
+{
+	int subcmds=1;
+	int i, j = 0;
+	for (i = 0; cmd_args[i] != NULL; ++i) 
+	{
+		if (cmd_args[i][0] == '|') 
+		{
+			cmd_args[i] = NULL;
+			subcmds = 1;
+		} 
+		else if (subcmds) 
+		{
+			new_cmdargs[j++] = &cmd_args[i];
+			subcmds = 0;
+		}
+	}
+	return new_cmdargs;
+}
 
+void pipe_config(int pid,int fd[2])
+{
+	if(pid==0)
+	{
+		close(fileno(stdout));
+		dup(fd[1]);
+		close(fd[0]);
+		close(fd[1]);
+	}
+	else
+	{
+		close(fileno(stdin));
+		dup(fd[0]);
+		close(fd[0]);
+		close(fd[1]);	
+	}
+}
+
+void start_pipe_execution(char ***new_cmdargs,int count)
+{
+	int fd[2];
+	int pid;
+	if(count==0)
+	{
+		execute_subcommand(new_cmdargs[count]);
+		return;
+	}
+	pipe(fd);
+	pid = fork();
+	pipe_config(pid,fd);
+	if(pid==0)
+	{
+		start_pipe_execution(new_cmdargs,count-1);
+		//exit(0);
+	}
+	else
+		execute_subcommand(new_cmdargs[count]);
+}
 
 int execute_command(char **command_args)
 {
 	//print_parsed(command_args);
 	int status;
+	//Split them individually
+	char ***new_cmdargs;
 	int p = check_pipe(command_args);
 	int r = check_redirection(command_args);
+	int i=0;
 	int pid;
+	int pipe_pid;
 	//int b = check_background(command_args);
 	//Check and see if redirection is needed
 	if(r==1)
@@ -336,12 +397,29 @@ int execute_command(char **command_args)
 		}
 	}
 	if(p==0)
-	{
+	{//No pipes
 		return execute_subcommand(command_args);
 	}
-	else
-	{
-		//Pipes logic goes here
+	else if(p>0)
+	{//Pipes logic goes here
+		//Store all pipe commands and process one by one by a recursive
+		//process
+		//printf("Pipes in command %d \n",p);
+		new_cmdargs = malloc((p+1)*sizeof(char **));
+		new_cmdargs = get_pipe_commands(command_args,new_cmdargs);
+		if((pipe_pid=fork())==0)
+		{
+		//child process. Should we kill? 
+			start_pipe_execution(new_cmdargs,p);
+			exit(0); // this is stable now
+		}
+
+		else
+		//parent process
+			waitpid(pipe_pid,&status,0);
+
+		free(new_cmdargs);
+		
 	}
 	return 1;
 }
