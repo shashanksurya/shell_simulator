@@ -11,6 +11,9 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <time.h>
+#include <pwd.h>
+#include <grp.h>
 #define BUFFER_SIZE 256 //better fit for this than just 80 chars
 
 /*
@@ -42,12 +45,41 @@ struct stat {
 };
 */
 
+void print_lastmtime(struct stat *sf)
+{//following linux manual way
+
+	char output[BUFFER_SIZE];
+	time_t t;
+	struct tm *tmp;
+	strftime(output,BUFFER_SIZE,"%b %d %H:%M",localtime(&(sf->st_mtime)));
+	printf("%s ",output);
+}
+
+void print_usrgrp(struct stat *sf)
+{
+	struct passwd *u = getpwuid(sf->st_uid);
+	struct group  *g = getgrgid(sf->st_gid);
+	printf("%s ",u->pw_name);
+	printf("%s ",g->gr_name);
+}
+
+void print_type(struct stat *sf)
+{
+	
+}
+
+void print_permissions(struct stat *sf)
+{
+	//if((sf->st_mode)&)
+}
 
 void ls()
 {
 	struct dirent *d;
 	DIR *dir;
-	char *temp = malloc(BUFFER_SIZE);;
+	struct stat *sf = malloc(sizeof(struct stat));
+	char *temp = malloc(BUFFER_SIZE);
+	char *fname;
 	//Get the pwd
 	if (getcwd(temp,BUFFER_SIZE)==NULL)
 	{
@@ -61,10 +93,21 @@ void ls()
 	{
 		//ls -l ->no hidden files, filter the names that start with dot
 		if(d->d_name[0]!='.')
-		printf("%s ",d->d_name);
+		{
+			fname = d->d_name;
+			stat(fname,sf);
+			print_permissions(sf);
+			print_usrgrp(sf);
+			printf("%ld ",sf->st_size);
+			print_lastmtime(sf);
+			printf("%s ",fname);
+			printf("\n");
+		}
 	}
 	printf("\n");
 	closedir(dir);
+	free(sf);
+	free(temp);
 }
 
 int main(void)
