@@ -1,11 +1,13 @@
 CC=gcc
 CFLAGS= -g -Wall
-TARGET= sim
 
-all: $(TARGET)
+all: sim myls
 
-$(TARGET):  $(TARGET).c
-	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
+sim: sim.c
+	$(CC) $(CFLAGS) -o sim sim.c
+
+myls: myls.c
+	$(CC) $(CFLAGS) -o myls myls.c
 
 clean:
-	$(RM) $(TARGET)
+	rm myls sim

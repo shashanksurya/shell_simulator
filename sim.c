@@ -1,4 +1,4 @@
-/*Basic UNIX Shell Simulator */
+/*An UNIX Shell Simulator */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -98,13 +98,17 @@ int check_pipe(char **cmd_args)
 char **remove_redirection(char **cmd_args)
 {
 	int i, j;
-	for (i = 0, j = 0; cmd_args[i] != NULL; ++i) {
+	for (i = 0, j = 0; cmd_args[i] != NULL; ++i) 
+	{
 		char *arg = cmd_args[i];
-		if ((strcmp(arg, ">") == 0 || strcmp(arg, "<") == 0)) {
+		if ((strcmp(arg, ">") == 0 || strcmp(arg, "<") == 0)) 
+		{
 			free(arg); // free the <, >
 			free(cmd_args[i + 1]); // free the filename
 			++i;
-		} else {
+		} 
+		else 
+		{
 			cmd_args[j] = cmd_args[i];
 			++j;
 		}
@@ -116,7 +120,8 @@ char **remove_redirection(char **cmd_args)
 void input_redirection(char *filename)
 {
 	int fd;
-	if((fd = open(filename, O_RDONLY)) == -1) {
+	if((fd = open(filename, O_RDONLY)) == -1) 
+	{
 		exit(1);
 	}
 	dup2(fd, STDIN_FILENO);
@@ -125,7 +130,8 @@ void input_redirection(char *filename)
 
 void output_redirection(char *filename) {
 	int fd;
-	if((fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0666)) == -1) {
+	if((fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0666)) == -1) 
+	{
 		exit(1);
 	}
 	dup2(fd, STDOUT_FILENO);
@@ -286,8 +292,34 @@ int execute_subcommand(char **command_args)
 		}
 		else if(strcmp(cmd,"exit")==0)
 		{
+			free(temp);
 			cleanup(command_args);
 			exit(0);
+		}
+		else if(strcmp(cmd,"myls")==0)
+		{
+			//get MYPATH
+			env = getenv("MYPATH");
+			if(env==NULL)
+			{
+				printf("Did not find MYPATH\n");
+			}
+			else
+			{
+				strcat(temp,env);
+				strcat(temp,"./myls");
+				printf("%s\n",temp);
+				if((pid=fork())==0)
+				{
+				execv(temp,&command_args[0]);
+				exit(0);
+				}
+				else if(pid>0)
+				{
+				waitpid(pid,&status,0);
+				}
+
+			}
 		}
 		else
 		{//Pass these to the shell
@@ -489,9 +521,9 @@ int main(void)
 		if((command = get_input())==NULL)
 		{
 			//Ctrl+D comes here, terminate?
-			printf("Read Error\n");
+			//printf("Read Error\n");
 			exit(0);
-			continue;
+			//continue;
 		}
 		else if (strcmp(command,"\n")==0)
 		{
