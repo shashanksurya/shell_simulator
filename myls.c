@@ -169,7 +169,7 @@ void ls()
 			printf("\n");
 		}
 	}
-	printf("\n");
+	//printf("\n");
 	closedir(dir);
 	free(sf);
 	free(temp);

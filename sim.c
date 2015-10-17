@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <signal.h>
 #define BUFFER_SIZE 80 //max 80 chars input from user
 
 void print_prompt()
@@ -367,6 +368,40 @@ void start_pipe_execution(char ***new_cmdargs,int count)
 		execute_subcommand(new_cmdargs[count]);
 }
 
+
+int check_background(char **cmd_args)
+{
+	int i=0;
+	for(i=0;cmd_args[i]!=NULL;i++)
+	{
+		if(strcmp(cmd_args[i],"&")==0)
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+char **remove_background(char **cmd_args)
+{
+	int i, j;
+	for (i = 0, j = 0; cmd_args[i] != NULL; ++i) 
+	{
+		if (strcmp(cmd_args[i],"&") == 0)
+		{
+			cmd_args[i] = '\0';
+			//return cmd_args;
+		} 
+		else 
+		{
+			cmd_args[j] = cmd_args[i];
+			++j;
+		}
+	}
+	cmd_args[j] = NULL;
+	return cmd_args;
+}
+
 int execute_command(char **command_args)
 {
 	//print_parsed(command_args);
@@ -375,10 +410,10 @@ int execute_command(char **command_args)
 	char ***new_cmdargs;
 	int p = check_pipe(command_args);
 	int r = check_redirection(command_args);
-	int i=0;
 	int pid;
 	int pipe_pid;
-	//int b = check_background(command_args);
+	int bg_pid;
+	int b = check_background(command_args);
 	//Check and see if redirection is needed
 	if(r==1)
 	{//setup the redirection
@@ -396,9 +431,27 @@ int execute_command(char **command_args)
 			return 1;
 		}
 	}
-	if(p==0)
-	{//No pipes
+	if(p==0&&b==0)
+	{//No pipes and background. Resume normal execution
 		return execute_subcommand(command_args);
+	}
+	else if(b==1)
+	{//It is a background process
+		//printf("Background process\n");
+		//remove the & symbol. assuming it will be in the end
+		command_args = remove_background(command_args);
+		if((bg_pid=fork())==0)
+		{//child process
+			setpgid(0, 0);
+			execute_subcommand(command_args);
+			exit(1);
+		}
+		else if(bg_pid>0)
+		{//parent process
+			//to signal the kernel to automatically reap the child
+			signal(SIGCHLD, SIG_IGN);
+			printf("%d\n",bg_pid);
+		}
 	}
 	else if(p>0)
 	{//Pipes logic goes here
